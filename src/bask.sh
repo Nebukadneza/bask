@@ -36,6 +36,9 @@ declare -ga bask_args=("${@}")
 declare -ga bask_flags
 declare -ga bask_tasks
 
+## List of tasks already run, used for dependency tracking
+declare -ga bask_depends_run
+
 declare -gA _bask_colors=(
     [black]="$(echo -e '\e[30m')"
     [red]="$(echo -e '\e[31m')"
@@ -190,13 +193,18 @@ _bask_run_task() {
     fi
     bask_log "Finished '${task_color}'" \
         "after ${_bask_colors[purple]}${time_diff}${_bask_colors[reset]}"
+    bask_depends_run+=("${1}")
 }
 
 ## Run tasks sequentially.
 bask_sequence() {
     bask_is_task_defined_verbose "${@}" || return
     for task in "${@}"; do
-        _bask_run_task "${task}" || return 1
+        if [[ ! ${bask_depends_run[*]} =~ $(echo "\<${task}\>") ]] ; then
+            _bask_run_task "${task}" || return 1
+        else
+            echo "Dependency Task \"$task\" already ran, skipping ..."
+        fi
     done
 }
 alias bask_depends=bask_sequence
